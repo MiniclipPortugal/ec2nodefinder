@@ -48,8 +48,10 @@ describe_instances(SecurityGroup, Host,APIVersion, AccessKey, SecretKey)->
         {ok, XML} ->
             {R,_} = xmerl_scan:string(XML),
             [ V#xmlText.value
-                || V<- xmerl_xpath:string("/DescribeInstancesResponse/reservationSet/item[ groupSet/item/groupId = \""
-                        ++ SecurityGroup ++ "\"]/instancesSet/item/privateDnsName/text()", R)];
+                || V<- xmerl_xpath:string("/DescribeInstancesResponse/reservationSet/item[ groupSet/item[1]/groupId = \""
+                        ++ SecurityGroup 
+                        ++ "\" or groupSet/item[2]/groupId = \"" 
+                        ++ SecurityGroup ++ "\" ]/instancesSet/item/privateDnsName/text()", R)];
         {error, E} ->
             erlang:error ({ describe_instances_failed, E }),
             []
