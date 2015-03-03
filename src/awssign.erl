@@ -42,17 +42,21 @@ sort(Params)->
     lists:sort(fun({A, _}, {X, _}) -> A > X end, Params).
     
 describe_instances(SecurityGroup, Host,APIVersion, AccessKey, SecretKey)->
-    Params =[ {"Action", "DescribeInstances"}],
-    Res = sign_and_send(Params, Host, APIVersion, AccessKey, SecretKey),
-    case Res of
-        {ok, XML} ->
-            {R,_} = xmerl_scan:string(XML),
-            [ V#xmlText.value
-                || V<- xmerl_xpath:string("/DescribeInstancesResponse/reservationSet/item[ groupSet/item[1]/groupId = \""
-                        ++ SecurityGroup 
-                        ++ "\" or groupSet/item[2]/groupId = \"" 
-                        ++ SecurityGroup ++ "\" ]/instancesSet/item/privateDnsName/text()", R)];
-        {error, E} ->
+    Params1 =[ {"Action", "DescribeInstances"}, {"Filter.1.Name", "instance.group-name"}, {"Filter.1.Value.1", SecurityGroup}],
+    Params2 =[ {"Action", "DescribeInstances"}, {"Filter.1.Name", "instance.group-id"}, {"Filter.1.Value.1", SecurityGroup}],
+    Res1 = sign_and_send(Params1, Host, APIVersion, AccessKey, SecretKey),
+    Res2 = sign_and_send(Params2, Host, APIVersion, AccessKey, SecretKey),
+    case {Res1, Res2} of
+        {{ok, XML1}, {ok, XML2}} ->
+            {R1,_} = xmerl_scan:string(XML1),
+            {R2,_} = xmerl_scan:string(XML2),
+            L1 = xmerl_xpath:string("/DescribeInstancesResponse/reservationSet/item/instancesSet/item/privateDnsName/text()", R1),
+            L2 = xmerl_xpath:string("/DescribeInstancesResponse/reservationSet/item/instancesSet/item/privateDnsName/text()", R2),
+            sets:to_list( sets:from_list([V#xmlText.value || V <- (L1 ++ L2)]) );
+        {{error, E}, _} ->
+            erlang:error ({ describe_instances_failed, E }),
+            [];
+        {_, {error, E}} ->
             erlang:error ({ describe_instances_failed, E }),
             []
     end.
