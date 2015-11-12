@@ -7,6 +7,7 @@
 
 -export([
     discover/0,
+    discover_ip_addresses/0,
     first_security_group/0,
     start/0,
     start/2,
@@ -28,6 +29,15 @@
 -spec discover() -> {ok, [{atom(), pong|pang|timeout}]}.
 discover() ->
     nodefinder_ec2_srv:discover().
+
+%%------------------------------------------------------------------------------
+%% @doc Initiate a discovery request (IP addresses).  Discovery is synchronous; the
+%% results are returned.
+%% @end
+%%------------------------------------------------------------------------------
+-spec discover_ip_addresses() -> {ok, [{atom(), pong|pang|timeout}]}.
+discover_ip_addresses() ->
+    nodefinder_ec2_srv:discover_ip_addresses().
 
 %%------------------------------------------------------------------------------
 %%                        application callbacks                        
