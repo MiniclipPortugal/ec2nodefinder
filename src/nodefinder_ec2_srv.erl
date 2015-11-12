@@ -8,7 +8,8 @@
 
 % API
 -export ([start_link/4,
-          discover/0 ]).
+          discover/0,
+          discover_ip_addresses/0]).
          
 % gen_server callbacks
 -export ([ init/1,
@@ -54,6 +55,9 @@ start_link (Group, PingTimeout, error, error)
 discover() ->
   gen_server:call(?MODULE, discover, 60000).
 
+discover_ip_addresses() ->
+  gen_server:call(?MODULE, discover_ip_addresses, 60000).
+
 %-=====================================================================-
 %-                         gen_server callbacks                        -
 %-=====================================================================-
@@ -66,11 +70,13 @@ init ([ Group, PingTimeout, Access, Secret  ]) ->
                   ping_timeout = PingTimeout,
                   access = Access,
                   secret = Secret },
-  discover (State),
+  discover_hostnames(State),
   { ok, State }.
 
 handle_call (discover, _From, State) -> 
-  { reply, { ok, discover (State) }, State };
+  { reply, { ok, discover_hostnames (State) }, State };
+handle_call (discover_ip_addresses, _From, State) ->
+  { reply, { ok, discover_ip_addresses (State) }, State };
 handle_call (_Request, _From, State) -> 
   { noreply, State }.
 
@@ -103,8 +109,13 @@ collect (Key, Timeout) ->
     timeout
   end.
 
-discover (State) ->
-    
+discover_hostnames(State) ->
+  discover(State, hostnames).
+
+discover_ip_addresses(State) ->
+  discover(State, ip_addresses).
+
+discover (State, Target) ->
   Group     = State#state.group,
   Timeout   = State#state.ping_timeout,
   Access    = State#state.access,
@@ -118,7 +129,8 @@ discover (State) ->
       [ { Node, start_ping(Node, Timeout) } ||
         { Host, { ok, NamesAndPorts } } <- 
           [ { Host, collect (Key, Timeout) } ||
-            { Host, Key } <- [ {Host, start_names(Host, Timeout)} || Host<-awssign:describe_instances(Group, Endpoint, ?APIVERSION, Access, Secret) ] ],
+            { Host, Key } <- [ {Host, start_names(Host, Timeout)} || Host<-awssign:describe_instances(Group, Endpoint, ?APIVERSION, Access,
+                                                                                                      Secret, Target) ] ],
         { Name, _ } <- NamesAndPorts,
       Node <- [ a(Name ++ "@" ++ (case LongName of 
 									  false -> get_hostname(Host);
